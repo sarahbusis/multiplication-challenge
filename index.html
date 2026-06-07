@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spark Academy Multiplication Challenge</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <img src="spark-logo.png" alt="Spark Academy logo" class="site-logo" />
+        <div>
+          <h1 data-i18n="title">Spark Academy Multiplication Challenge</h1>
+          <p class="subtitle" data-i18n="subtitle">50 facts. 3 minutes. Do your best.</p>
+        </div>
+      </div>
+
+      <button id="languageBtn" class="small-btn">Español</button>
+    </header>
+
+    <main>
+      <!-- LOGIN / HOME SCREEN -->
+      <section id="homeScreen" class="screen active">
+        <div class="card home-card">
+          <h2 data-i18n="enterLunch">Enter your lunch number</h2>
+
+          <input
+            id="lunchInput"
+            class="lunch-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            placeholder="Lunch number"
+          />
+
+          <p class="helper" data-i18n="privacy">
+            Your name will not show on this website.
+          </p>
+
+          <div class="button-row">
+            <button id="saveLunchBtn" class="primary-btn" data-i18n="continueBtn">
+              Continue
+            </button>
+          </div>
+
+          <div id="homeChoices" class="hidden">
+            <p class="current-id">
+              <span data-i18n="currentLunch">Current lunch number:</span>
+              <strong id="currentLunchDisplay"></strong>
+            </p>
+
+            <div class="button-row stacked-mobile">
+              <button id="goReadyBtn" class="primary-btn" data-i18n="startChallenge">
+                Start 3-Minute Challenge
+              </button>
+              <button id="goDashboardBtn" class="secondary-btn" data-i18n="viewDashboard">
+                View My Dashboard
+              </button>
+              <button id="changeLunchBtn" class="text-btn" data-i18n="changeLunch">
+                Change lunch number
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- READY SCREEN -->
+      <section id="readyScreen" class="screen">
+        <div class="card ready-card">
+          <h2 data-i18n="ready">Ready?</h2>
+          <p data-i18n="readyText">
+            You will have 3 minutes to answer 50 multiplication facts.
+          </p>
+
+          <div class="button-row">
+            <button id="startBtn" class="primary-btn big-btn" data-i18n="start">
+              Start
+            </button>
+            <button id="backHomeFromReadyBtn" class="secondary-btn" data-i18n="back">
+              Back
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- QUIZ SCREEN -->
+      <section id="quizScreen" class="screen">
+        <div class="quiz-header">
+          <div>
+            <h2 data-i18n="challenge">Challenge</h2>
+            <p class="helper" data-i18n="typeFast">
+              Type your answers. Press Enter or Tab to move forward.
+            </p>
+          </div>
+
+          <div class="timer-box">
+            <span data-i18n="timeLeft">Time left</span>
+            <strong id="timerDisplay">3:00</strong>
+          </div>
+        </div>
+
+        <div id="problemGrid" class="problem-grid"></div>
+
+        <div class="quiz-actions">
+          <button id="submitBtn" class="primary-btn" data-i18n="submitNow">
+            Submit Now
+          </button>
+        </div>
+      </section>
+
+      <!-- RESULTS SCREEN -->
+      <section id="resultsScreen" class="screen">
+        <div class="card">
+          <h2 data-i18n="results">Results</h2>
+
+          <div class="summary-grid">
+            <div class="summary-box">
+              <span data-i18n="score">Score</span>
+              <strong id="scoreDisplay">0/50</strong>
+            </div>
+            <div class="summary-box">
+              <span data-i18n="percent">Percent</span>
+              <strong id="percentDisplay">0%</strong>
+            </div>
+            <div class="summary-box">
+              <span data-i18n="timeUsed">Time used</span>
+              <strong id="timeUsedDisplay">0:00</strong>
+            </div>
+          </div>
+
+          <h3 data-i18n="feedback">Problem Feedback</h3>
+          <div id="feedbackGrid" class="feedback-grid"></div>
+
+          <div class="button-row stacked-mobile">
+            <button id="retryBtn" class="primary-btn" data-i18n="tryAgain">
+              Try Again
+            </button>
+            <button id="resultsDashboardBtn" class="secondary-btn" data-i18n="viewDashboard">
+              View My Dashboard
+            </button>
+            <button id="resultsHomeBtn" class="text-btn" data-i18n="home">
+              Home
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- DASHBOARD SCREEN -->
+      <section id="dashboardScreen" class="screen">
+        <div class="card">
+          <div class="dashboard-header">
+            <div>
+              <h2 data-i18n="myDashboard">My Dashboard</h2>
+              <p class="helper">
+                <span data-i18n="lunchNumber">Lunch number:</span>
+                <strong id="dashboardLunchDisplay"></strong>
+              </p>
+            </div>
+
+            <button id="dashboardHomeBtn" class="secondary-btn" data-i18n="home">
+              Home
+            </button>
+          </div>
+
+          <div id="noDataMessage" class="empty-state hidden" data-i18n="noData">
+            No attempts yet. Try the challenge first!
+          </div>
+
+          <div id="dashboardContent">
+            <div class="summary-grid">
+              <div class="summary-box">
+                <span data-i18n="bestScore">Best score</span>
+                <strong id="bestScoreDisplay">—</strong>
+              </div>
+              <div class="summary-box">
+                <span data-i18n="bestPerfectTime">Best 50/50 time</span>
+                <strong id="bestPerfectTimeDisplay">—</strong>
+              </div>
+              <div class="summary-box">
+                <span data-i18n="attempts">Attempts</span>
+                <strong id="attemptCountDisplay">—</strong>
+              </div>
+            </div>
+
+            <h3 data-i18n="scoreOverTime">Scores Over Time</h3>
+            <canvas id="scoreChart" width="900" height="320"></canvas>
+
+            <h3 data-i18n="mostMissed">Most Missed Facts</h3>
+            <div id="missedFactsList" class="missed-list"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- BADGE POPUP -->
+  <div id="badgeOverlay" class="badge-overlay hidden">
+    <div class="badge-popup">
+      <button id="closeBadgeBtn" class="badge-close">×</button>
+      <div id="badgeIcon" class="badge-icon">🏆</div>
+      <h2 id="badgeTitle">Badge Earned!</h2>
+      <p id="badgeText">Great work!</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
