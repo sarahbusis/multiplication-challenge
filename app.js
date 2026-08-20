@@ -12,13 +12,13 @@ const translations = {
   en: {
     title: "Spark Academy Multiplication Challenge",
     subtitle: "50 facts. 3 minutes. Do your best.",
-    enterLunch: "Enter your lunch number",
+    enterLunch: "Enter your Star Card ID",
     privacy: "Your name will not show on this website.",
     continueBtn: "Continue",
-    currentLunch: "Current lunch number:",
+    currentLunch: "Current Star Card ID:",
     startChallenge: "Start 3-Minute Challenge",
     viewDashboard: "View My Dashboard",
-    changeLunch: "Change lunch number",
+    changeLunch: "Change Star Card ID",
     ready: "Ready?",
     readyText: "You will have 3 minutes to answer 50 multiplication facts.",
     start: "Start",
@@ -35,7 +35,7 @@ const translations = {
     tryAgain: "Try Again",
     home: "Home",
     myDashboard: "My Dashboard",
-    lunchNumber: "Lunch number:",
+    lunchNumber: "Star Card ID:",
     noData: "No attempts yet. Try the challenge first!",
     bestScore: "Best score",
     bestPerfectTime: "Best 50/50 time",
@@ -47,19 +47,19 @@ const translations = {
     blank: "blank",
     noPerfectYet: "No 50/50 yet",
     noMissedFacts: "No missed facts yet!",
-    alertLunch: "Please enter your lunch number.",
+    alertLunch: "Please enter your Star Card ID.",
     languageButton: "Español"
   },
   es: {
     title: "Reto de multiplicación de Spark Academy",
     subtitle: "50 operaciones. 3 minutos. Haz tu mejor esfuerzo.",
-    enterLunch: "Escribe tu número de almuerzo",
+    enterLunch: "Escribe tu Star Card ID",
     privacy: "Tu nombre no aparecerá en este sitio web.",
     continueBtn: "Continuar",
-    currentLunch: "Número de almuerzo actual:",
+    currentLunch: "Star Card ID actual:",
     startChallenge: "Empezar el reto de 3 minutos",
     viewDashboard: "Ver mi tablero",
-    changeLunch: "Cambiar número de almuerzo",
+    changeLunch: "Cambiar Star Card ID",
     ready: "¿Listo?",
     readyText: "Tendrás 3 minutos para contestar 50 multiplicaciones.",
     start: "Empezar",
@@ -76,7 +76,7 @@ const translations = {
     tryAgain: "Intentar otra vez",
     home: "Inicio",
     myDashboard: "Mi tablero",
-    lunchNumber: "Número de almuerzo:",
+    lunchNumber: "Star Card ID:",
     noData: "Todavía no hay intentos. ¡Primero intenta el reto!",
     bestScore: "Mejor puntaje",
     bestPerfectTime: "Mejor tiempo con 50/50",
@@ -88,7 +88,7 @@ const translations = {
     blank: "en blanco",
     noPerfectYet: "Todavía no hay 50/50",
     noMissedFacts: "¡Todavía no hay errores!",
-    alertLunch: "Por favor escribe tu número de almuerzo.",
+    alertLunch: "Por favor escribe tu Star Card ID.",
     languageButton: "English"
   }
 };
@@ -149,6 +149,10 @@ function applyLanguage() {
 
   languageBtn.textContent = t("languageButton");
   localStorage.setItem("multLang", language);
+
+  if (lunchInput) {
+    lunchInput.placeholder = language === "en" ? "Star Card ID" : "Star Card ID";
+  }
 }
 
 function showScreen(screenName) {
@@ -292,7 +296,6 @@ function handleAnswerKeydown(event) {
 
 function handleAnswerInput() {
   // Do not auto-submit while typing.
-  // This prevents a final two-digit answer from submitting after only the first digit.
 }
 
 function focusNextInput(currentIndex) {
