@@ -22,49 +22,50 @@
 
     <main>
       <!-- LOGIN / HOME SCREEN -->
-      <section id="homeScreen" class="screen active">
-        <div class="card home-card">
-          <h2 data-i18n="enterLunch">Enter your star card ID/h2>
+    <!-- LOGIN / HOME SCREEN -->
+<section id="homeScreen" class="screen active">
+  <div class="card home-card">
+    <h2 data-i18n="enterLunch">Enter your Star Card ID</h2>
 
-          <input
-            id="lunchInput"
-            class="lunch-input"
-            type="text"
-            inputmode="numeric"
-            autocomplete="off"
-            placeholder="Star Card ID"
-          />
+    <input
+      id="lunchInput"
+      class="lunch-input"
+      type="text"
+      inputmode="numeric"
+      autocomplete="off"
+      placeholder="Star Card ID"
+    />
 
-          <p class="helper" data-i18n="privacy">
-            Your name will not show on this website.
-          </p>
+    <p class="helper" data-i18n="privacy">
+      Your name will not show on this website.
+    </p>
 
-          <div class="button-row">
-            <button id="saveLunchBtn" class="primary-btn" data-i18n="continueBtn">
-              Continue
-            </button>
-          </div>
+    <div class="button-row">
+      <button id="saveLunchBtn" class="primary-btn" data-i18n="continueBtn">
+        Continue
+      </button>
+    </div>
 
-          <div id="homeChoices" class="hidden">
-            <p class="current-id">
-              <span data-i18n="currentLunch">Current lunch number:</span>
-              <strong id="currentLunchDisplay"></strong>
-            </p>
+    <div id="homeChoices" class="hidden">
+      <p class="current-id">
+        <span data-i18n="currentLunch">Current Star Card ID:</span>
+        <strong id="currentLunchDisplay"></strong>
+      </p>
 
-            <div class="button-row stacked-mobile">
-              <button id="goReadyBtn" class="primary-btn" data-i18n="startChallenge">
-                Start 3-Minute Challenge
-              </button>
-              <button id="goDashboardBtn" class="secondary-btn" data-i18n="viewDashboard">
-                View My Dashboard
-              </button>
-              <button id="changeLunchBtn" class="text-btn" data-i18n="changeLunch">
-                Change lunch number
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+      <div class="button-row stacked-mobile">
+        <button id="goReadyBtn" class="primary-btn" data-i18n="startChallenge">
+          Start 3-Minute Challenge
+        </button>
+        <button id="goDashboardBtn" class="secondary-btn" data-i18n="viewDashboard">
+          View My Dashboard
+        </button>
+        <button id="changeLunchBtn" class="text-btn" data-i18n="changeLunch">
+          Change Star Card ID
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
 
       <!-- READY SCREEN -->
       <section id="readyScreen" class="screen">
