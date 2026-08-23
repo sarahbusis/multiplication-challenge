@@ -1,8 +1,11 @@
 const TOTAL_PROBLEMS = 50;
-const TIME_LIMIT_SECONDS = 180;
+const DEFAULT_TIME_LIMIT_SECONDS = 180;
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzBTcrmG25f-S_dbhY3FeUkBu4Ip49Ok9N-xj-St1J_1BMZSSOVv6lzikuSqe47m1vg/exec";
 
 let currentLunchNumber = "";
 let currentProblems = [];
+let currentTimeLimitSeconds = DEFAULT_TIME_LIMIT_SECONDS;
 let startTime = null;
 let timerInterval = null;
 let submitted = false;
@@ -11,16 +14,16 @@ let language = localStorage.getItem("multLang") || "en";
 const translations = {
   en: {
     title: "Spark Academy Multiplication Challenge",
-    subtitle: "50 facts. 3 minutes. Do your best.",
+    subtitle: "50 facts. Do your best.",
     enterLunch: "Enter your Star Card ID",
     privacy: "Your name will not show on this website.",
     continueBtn: "Continue",
     currentLunch: "Current Star Card ID:",
-    startChallenge: "Start 3-Minute Challenge",
+    startChallenge: "Start Challenge",
     viewDashboard: "View My Dashboard",
     changeLunch: "Change Star Card ID",
     ready: "Ready?",
-    readyText: "You will have 3 minutes to answer 50 multiplication facts.",
+    readyText: "You will answer 50 multiplication facts. Your teacher controls the time limit.",
     start: "Start",
     back: "Back",
     challenge: "Challenge",
@@ -48,20 +51,24 @@ const translations = {
     noPerfectYet: "No 50/50 yet",
     noMissedFacts: "No missed facts yet!",
     alertLunch: "Please enter your Star Card ID.",
-    languageButton: "Español"
+    languageButton: "Español",
+    settingsLoaded: "Time limit:",
+    savingScore: "Saving score...",
+    scoreSaved: "Score saved!",
+    scoreSaveError: "Score could not be saved. Your local result is still shown."
   },
   es: {
     title: "Reto de multiplicación de Spark Academy",
-    subtitle: "50 operaciones. 3 minutos. Haz tu mejor esfuerzo.",
+    subtitle: "50 operaciones. Haz tu mejor esfuerzo.",
     enterLunch: "Escribe tu Star Card ID",
     privacy: "Tu nombre no aparecerá en este sitio web.",
     continueBtn: "Continuar",
     currentLunch: "Star Card ID actual:",
-    startChallenge: "Empezar el reto de 3 minutos",
+    startChallenge: "Empezar el reto",
     viewDashboard: "Ver mi tablero",
     changeLunch: "Cambiar Star Card ID",
     ready: "¿Listo?",
-    readyText: "Tendrás 3 minutos para contestar 50 multiplicaciones.",
+    readyText: "Contestarás 50 multiplicaciones. Tu maestro controla el límite de tiempo.",
     start: "Empezar",
     back: "Atrás",
     challenge: "Reto",
@@ -89,7 +96,11 @@ const translations = {
     noPerfectYet: "Todavía no hay 50/50",
     noMissedFacts: "¡Todavía no hay errores!",
     alertLunch: "Por favor escribe tu Star Card ID.",
-    languageButton: "English"
+    languageButton: "English",
+    settingsLoaded: "Límite de tiempo:",
+    savingScore: "Guardando puntaje...",
+    scoreSaved: "¡Puntaje guardado!",
+    scoreSaveError: "No se pudo guardar el puntaje. Tu resultado local todavía aparece."
   }
 };
 
@@ -137,6 +148,9 @@ const badgeIcon = document.getElementById("badgeIcon");
 const badgeTitle = document.getElementById("badgeTitle");
 const badgeText = document.getElementById("badgeText");
 
+let saveStatusEl = null;
+let timeLimitNoteEl = null;
+
 function t(key) {
   return translations[language][key] || translations.en[key] || key;
 }
@@ -151,8 +165,10 @@ function applyLanguage() {
   localStorage.setItem("multLang", language);
 
   if (lunchInput) {
-    lunchInput.placeholder = language === "en" ? "Star Card ID" : "Star Card ID";
+    lunchInput.placeholder = "Star Card ID";
   }
+
+  updateTimeLimitNotes();
 }
 
 function showScreen(screenName) {
@@ -231,13 +247,59 @@ function generateProblemSet() {
   return shuffleArray(generateAllFacts()).slice(0, TOTAL_PROBLEMS);
 }
 
-function startChallenge() {
+async function loadSettings() {
+  try {
+    const url = `${WEB_APP_URL}?action=getSettings&cacheBust=${Date.now()}`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data && data.ok && Number(data.timeLimitSeconds)) {
+      currentTimeLimitSeconds = Number(data.timeLimitSeconds);
+      localStorage.setItem("multTimeLimitSeconds", String(currentTimeLimitSeconds));
+      updateTimeLimitNotes();
+      return;
+    }
+
+    useFallbackTimeLimit();
+  } catch (error) {
+    useFallbackTimeLimit();
+  }
+}
+
+function useFallbackTimeLimit() {
+  const saved = Number(localStorage.getItem("multTimeLimitSeconds"));
+
+  if (saved) {
+    currentTimeLimitSeconds = saved;
+  } else {
+    currentTimeLimitSeconds = DEFAULT_TIME_LIMIT_SECONDS;
+  }
+
+  updateTimeLimitNotes();
+}
+
+function updateTimeLimitNotes() {
+  const text = `${t("settingsLoaded")} ${formatSeconds(currentTimeLimitSeconds)}`;
+
+  if (timeLimitNoteEl) {
+    timeLimitNoteEl.textContent = text;
+  }
+
+  const readyText = document.querySelector("[data-i18n='readyText']");
+  if (readyText) {
+    readyText.textContent = `${t("readyText")} ${text}`;
+  }
+}
+
+async function startChallenge() {
+  await loadSettings();
+
   currentProblems = generateProblemSet();
   startTime = Date.now();
   submitted = false;
 
   renderProblems();
-  updateTimerDisplay(TIME_LIMIT_SECONDS);
+  updateTimerDisplay(currentTimeLimitSeconds);
 
   showScreen("quiz");
 
@@ -317,7 +379,7 @@ function handleTimerTick() {
   if (submitted) return;
 
   const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-  const remainingSeconds = Math.max(0, TIME_LIMIT_SECONDS - elapsedSeconds);
+  const remainingSeconds = Math.max(0, currentTimeLimitSeconds - elapsedSeconds);
 
   updateTimerDisplay(remainingSeconds);
 
@@ -344,7 +406,7 @@ function submitAttempt() {
   clearInterval(timerInterval);
 
   const timeUsedSeconds = Math.min(
-    TIME_LIMIT_SECONDS,
+    currentTimeLimitSeconds,
     Math.round((Date.now() - startTime) / 1000)
   );
 
@@ -375,7 +437,8 @@ function submitAttempt() {
     score,
     percent,
     timeUsedSeconds,
-    completedBeforeTime: timeUsedSeconds < TIME_LIMIT_SECONDS,
+    timeLimitSeconds: currentTimeLimitSeconds,
+    completedBeforeTime: timeUsedSeconds < currentTimeLimitSeconds,
     problems: problemResults
   };
 
@@ -385,8 +448,55 @@ function submitAttempt() {
   renderResults(attempt);
   showScreen("results");
 
+  sendAttemptToGoogleSheet(attempt);
+
   const updatedAttempts = getAttemptsForCurrentStudent();
   checkForBadges(attempt, previousAttempts, updatedAttempts);
+}
+
+async function sendAttemptToGoogleSheet(attempt) {
+  setSaveStatus(t("savingScore"));
+
+  const params = new URLSearchParams({
+    action: "submitScore",
+    starCardNumber: attempt.lunchNumber,
+    score: String(attempt.score),
+    timeUsedSeconds: String(attempt.timeUsedSeconds),
+    timeLimitSeconds: String(attempt.timeLimitSeconds),
+    completedBeforeTime: String(attempt.completedBeforeTime),
+    cacheBust: String(Date.now())
+  });
+
+  try {
+    const response = await fetch(`${WEB_APP_URL}?${params.toString()}`);
+    const data = await response.json();
+
+    if (data && data.ok) {
+      setSaveStatus(t("scoreSaved"));
+    } else {
+      setSaveStatus(t("scoreSaveError"));
+    }
+  } catch (error) {
+    setSaveStatus(t("scoreSaveError"));
+  }
+}
+
+function setSaveStatus(message) {
+  if (!saveStatusEl) {
+    saveStatusEl = document.createElement("p");
+    saveStatusEl.className = "helper";
+    saveStatusEl.style.textAlign = "center";
+    saveStatusEl.style.fontWeight = "800";
+
+    const resultsCard = document.querySelector("#resultsScreen .card");
+    const summaryGrid = document.querySelector("#resultsScreen .summary-grid");
+
+    if (resultsCard && summaryGrid) {
+      resultsCard.insertBefore(saveStatusEl, summaryGrid.nextSibling);
+    }
+  }
+
+  saveStatusEl.textContent = message;
 }
 
 function saveAttemptLocally(attempt) {
@@ -759,7 +869,10 @@ lunchInput.addEventListener("keydown", (event) => {
   }
 });
 
-goReadyBtn.addEventListener("click", () => showScreen("ready"));
+goReadyBtn.addEventListener("click", async () => {
+  await loadSettings();
+  showScreen("ready");
+});
 
 goDashboardBtn.addEventListener("click", () => {
   renderDashboard();
@@ -774,7 +887,10 @@ backHomeFromReadyBtn.addEventListener("click", () => showScreen("home"));
 
 submitBtn.addEventListener("click", submitAttempt);
 
-retryBtn.addEventListener("click", () => showScreen("ready"));
+retryBtn.addEventListener("click", async () => {
+  await loadSettings();
+  showScreen("ready");
+});
 
 resultsDashboardBtn.addEventListener("click", () => {
   renderDashboard();
@@ -792,4 +908,5 @@ languageBtn.addEventListener("click", () => {
 
 applyLanguage();
 initializeLunchNumber();
+loadSettings();
 showScreen("home");
