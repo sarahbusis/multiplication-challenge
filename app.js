@@ -27,7 +27,7 @@ const translations = {
     start: "Start",
     back: "Back",
     challenge: "Challenge",
-    typeFast: "Type your answers. Press Enter or Tab to move forward.",
+    typeFast: "Type your answers. Press Enter to move forward.",
     timeLeft: "Time left",
     submitNow: "Submit Now",
     results: "Results",
@@ -72,7 +72,7 @@ const translations = {
     start: "Empezar",
     back: "Atrás",
     challenge: "Reto",
-    typeFast: "Escribe tus respuestas. Presiona Enter o Tab para avanzar.",
+    typeFast: "Escribe tus respuestas. Presiona Enter para avanzar.",
     timeLeft: "Tiempo restante",
     submitNow: "Entregar ahora",
     results: "Resultados",
@@ -149,7 +149,6 @@ const badgeTitle = document.getElementById("badgeTitle");
 const badgeText = document.getElementById("badgeText");
 
 let saveStatusEl = null;
-let timeLimitNoteEl = null;
 
 function t(key) {
   return translations[language][key] || translations.en[key] || key;
@@ -247,11 +246,55 @@ function generateProblemSet() {
   return shuffleArray(generateAllFacts()).slice(0, TOTAL_PROBLEMS);
 }
 
+function jsonpRequest(baseUrl, params = {}) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `jsonpCallback_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+
+    const url = new URL(baseUrl);
+
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+
+    url.searchParams.set("callback", callbackName);
+
+    const script = document.createElement("script");
+    script.src = url.toString();
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("JSONP request timed out."));
+    }, 10000);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      delete window[callbackName];
+
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    }
+
+    window[callbackName] = function(data) {
+      cleanup();
+      resolve(data);
+    };
+
+    script.onerror = function() {
+      cleanup();
+      reject(new Error("JSONP request failed."));
+    };
+
+    document.body.appendChild(script);
+  });
+}
+
 async function loadSettings() {
   try {
-    const url = `${WEB_APP_URL}?action=getSettings&cacheBust=${Date.now()}`;
-    const response = await fetch(url);
-    const data = await response.json();
+    const data = await jsonpRequest(WEB_APP_URL, {
+      action: "getSettings",
+      cacheBust: Date.now()
+    });
 
     if (data && data.ok && Number(data.timeLimitSeconds)) {
       currentTimeLimitSeconds = Number(data.timeLimitSeconds);
@@ -262,6 +305,7 @@ async function loadSettings() {
 
     useFallbackTimeLimit();
   } catch (error) {
+    console.error("Settings failed to load:", error);
     useFallbackTimeLimit();
   }
 }
@@ -280,12 +324,8 @@ function useFallbackTimeLimit() {
 
 function updateTimeLimitNotes() {
   const text = `${t("settingsLoaded")} ${formatSeconds(currentTimeLimitSeconds)}`;
-
-  if (timeLimitNoteEl) {
-    timeLimitNoteEl.textContent = text;
-  }
-
   const readyText = document.querySelector("[data-i18n='readyText']");
+
   if (readyText) {
     readyText.textContent = `${t("readyText")} ${text}`;
   }
@@ -358,6 +398,7 @@ function handleAnswerKeydown(event) {
 
 function handleAnswerInput() {
   // Do not auto-submit while typing.
+  // Students submit by clicking Submit Now, pressing Enter on the last filled box, or when time runs out.
 }
 
 function focusNextInput(currentIndex) {
@@ -457,26 +498,25 @@ function submitAttempt() {
 async function sendAttemptToGoogleSheet(attempt) {
   setSaveStatus(t("savingScore"));
 
-  const params = new URLSearchParams({
-    action: "submitScore",
-    starCardNumber: attempt.lunchNumber,
-    score: String(attempt.score),
-    timeUsedSeconds: String(attempt.timeUsedSeconds),
-    timeLimitSeconds: String(attempt.timeLimitSeconds),
-    completedBeforeTime: String(attempt.completedBeforeTime),
-    cacheBust: String(Date.now())
-  });
-
   try {
-    const response = await fetch(`${WEB_APP_URL}?${params.toString()}`);
-    const data = await response.json();
+    const data = await jsonpRequest(WEB_APP_URL, {
+      action: "submitScore",
+      starCardNumber: attempt.lunchNumber,
+      score: String(attempt.score),
+      timeUsedSeconds: String(attempt.timeUsedSeconds),
+      timeLimitSeconds: String(attempt.timeLimitSeconds),
+      completedBeforeTime: String(attempt.completedBeforeTime),
+      cacheBust: Date.now()
+    });
 
     if (data && data.ok) {
       setSaveStatus(t("scoreSaved"));
     } else {
+      console.error("Score save error:", data);
       setSaveStatus(t("scoreSaveError"));
     }
   } catch (error) {
+    console.error("Score failed to save:", error);
     setSaveStatus(t("scoreSaveError"));
   }
 }
