@@ -16,8 +16,6 @@
   --yellow: #facc15;
   --yellow-light: #fef9c3;
   --purple: #7c3aed;
-  --purple-light: #ede9fe;
-  --orange: #fb923c;
   --orange-light: #ffedd5;
   --gray-50: #f8fafc;
   --gray-100: #f1f5f9;
@@ -142,6 +140,17 @@ h1 {
   color: var(--gray-500);
   font-size: 0.98rem;
   font-weight: 600;
+}
+
+.time-limit-note {
+  display: inline-block;
+  margin: 10px auto 0;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--yellow-light);
+  border: 2px solid var(--yellow);
+  color: #713f12;
+  font-weight: 900;
 }
 
 .button-row {
@@ -436,7 +445,6 @@ canvas {
   border: 2px solid var(--yellow);
 }
 
-/* BADGE POPUP */
 .badge-overlay {
   position: fixed;
   inset: 0;

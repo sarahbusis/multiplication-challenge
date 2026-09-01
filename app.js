@@ -1,6 +1,7 @@
 const TOTAL_PROBLEMS = 50;
 const DEFAULT_TIME_LIMIT_SECONDS = 180;
 
+// Google Apps Script Web App URL for the Spark Multiplication Challenge backend.
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzBTcrmG25f-S_dbhY3FeUkBu4Ip49Ok9N-xj-St1J_1BMZSSOVv6lzikuSqe47m1vg/exec";
 
 let currentLunchNumber = "";
@@ -141,6 +142,7 @@ const noDataMessage = document.getElementById("noDataMessage");
 const dashboardContent = document.getElementById("dashboardContent");
 const scoreChart = document.getElementById("scoreChart");
 const languageBtn = document.getElementById("languageBtn");
+const timeLimitNote = document.getElementById("timeLimitNote");
 
 const badgeOverlay = document.getElementById("badgeOverlay");
 const closeBadgeBtn = document.getElementById("closeBadgeBtn");
@@ -249,7 +251,6 @@ function generateProblemSet() {
 function jsonpRequest(baseUrl, params = {}) {
   return new Promise((resolve, reject) => {
     const callbackName = `jsonpCallback_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-
     const url = new URL(baseUrl);
 
     Object.entries(params).forEach(([key, value]) => {
@@ -324,10 +325,9 @@ function useFallbackTimeLimit() {
 
 function updateTimeLimitNotes() {
   const text = `${t("settingsLoaded")} ${formatSeconds(currentTimeLimitSeconds)}`;
-  const readyText = document.querySelector("[data-i18n='readyText']");
 
-  if (readyText) {
-    readyText.textContent = `${t("readyText")} ${text}`;
+  if (timeLimitNote) {
+    timeLimitNote.textContent = text;
   }
 }
 
@@ -398,7 +398,6 @@ function handleAnswerKeydown(event) {
 
 function handleAnswerInput() {
   // Do not auto-submit while typing.
-  // Students submit by clicking Submit Now, pressing Enter on the last filled box, or when time runs out.
 }
 
 function focusNextInput(currentIndex) {

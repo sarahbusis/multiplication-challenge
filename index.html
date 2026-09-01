@@ -13,7 +13,7 @@
         <img src="spark-logo.png" alt="Spark Academy logo" class="site-logo" />
         <div>
           <h1 data-i18n="title">Spark Academy Multiplication Challenge</h1>
-          <p class="subtitle" data-i18n="subtitle">50 facts. 3 minutes. Do your best.</p>
+          <p class="subtitle" data-i18n="subtitle">50 facts. Do your best.</p>
         </div>
       </div>
 
@@ -21,57 +21,57 @@
     </header>
 
     <main>
-      <!-- LOGIN / HOME SCREEN -->
-<section id="homeScreen" class="screen active">
-  <div class="card home-card">
-    <h2 data-i18n="enterLunch">Enter your Star Card ID</h2>
+      <section id="homeScreen" class="screen active">
+        <div class="card home-card">
+          <h2 data-i18n="enterLunch">Enter your Star Card ID</h2>
 
-    <input
-      id="lunchInput"
-      class="lunch-input"
-      type="text"
-      inputmode="numeric"
-      autocomplete="off"
-      placeholder="Star Card ID"
-    />
+          <input
+            id="lunchInput"
+            class="lunch-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            placeholder="Star Card ID"
+          />
 
-    <p class="helper" data-i18n="privacy">
-      Your name will not show on this website.
-    </p>
+          <p class="helper" data-i18n="privacy">
+            Your name will not show on this website.
+          </p>
 
-    <div class="button-row">
-      <button id="saveLunchBtn" class="primary-btn" data-i18n="continueBtn">
-        Continue
-      </button>
-    </div>
+          <div class="button-row">
+            <button id="saveLunchBtn" class="primary-btn" data-i18n="continueBtn">
+              Continue
+            </button>
+          </div>
 
-    <div id="homeChoices" class="hidden">
-      <p class="current-id">
-        <span data-i18n="currentLunch">Current Star Card ID:</span>
-        <strong id="currentLunchDisplay"></strong>
-      </p>
+          <div id="homeChoices" class="hidden">
+            <p class="current-id">
+              <span data-i18n="currentLunch">Current Star Card ID:</span>
+              <strong id="currentLunchDisplay"></strong>
+            </p>
 
-      <div class="button-row stacked-mobile">
-        <button id="goReadyBtn" class="primary-btn" data-i18n="startChallenge">
-          Start 3-Minute Challenge
-        </button>
-        <button id="goDashboardBtn" class="secondary-btn" data-i18n="viewDashboard">
-          View My Dashboard
-        </button>
-        <button id="changeLunchBtn" class="text-btn" data-i18n="changeLunch">
-          Change Star Card ID
-        </button>
-      </div>
-    </div>
-  </div>
-</section>
-      <!-- READY SCREEN -->
+            <div class="button-row stacked-mobile">
+              <button id="goReadyBtn" class="primary-btn" data-i18n="startChallenge">
+                Start Challenge
+              </button>
+              <button id="goDashboardBtn" class="secondary-btn" data-i18n="viewDashboard">
+                View My Dashboard
+              </button>
+              <button id="changeLunchBtn" class="text-btn" data-i18n="changeLunch">
+                Change Star Card ID
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="readyScreen" class="screen">
         <div class="card ready-card">
           <h2 data-i18n="ready">Ready?</h2>
-          <p data-i18n="readyText">
-            You will have 3 minutes to answer 50 multiplication facts.
+          <p id="readyText" data-i18n="readyText">
+            You will answer 50 multiplication facts. Your teacher controls the time limit.
           </p>
+          <p id="timeLimitNote" class="time-limit-note">Time limit: 3:00</p>
 
           <div class="button-row">
             <button id="startBtn" class="primary-btn big-btn" data-i18n="start">
@@ -84,13 +84,12 @@
         </div>
       </section>
 
-      <!-- QUIZ SCREEN -->
       <section id="quizScreen" class="screen">
         <div class="quiz-header">
           <div>
             <h2 data-i18n="challenge">Challenge</h2>
             <p class="helper" data-i18n="typeFast">
-              Type your answers. Press Enter or Tab to move forward.
+              Type your answers. Press Enter to move forward.
             </p>
           </div>
 
@@ -109,7 +108,6 @@
         </div>
       </section>
 
-      <!-- RESULTS SCREEN -->
       <section id="resultsScreen" class="screen">
         <div class="card">
           <h2 data-i18n="results">Results</h2>
@@ -146,14 +144,13 @@
         </div>
       </section>
 
-      <!-- DASHBOARD SCREEN -->
       <section id="dashboardScreen" class="screen">
         <div class="card">
           <div class="dashboard-header">
             <div>
               <h2 data-i18n="myDashboard">My Dashboard</h2>
               <p class="helper">
-                <span data-i18n="lunchNumber">Lunch number:</span>
+                <span data-i18n="lunchNumber">Star Card ID:</span>
                 <strong id="dashboardLunchDisplay"></strong>
               </p>
             </div>
@@ -194,7 +191,6 @@
     </main>
   </div>
 
-  <!-- BADGE POPUP -->
   <div id="badgeOverlay" class="badge-overlay hidden">
     <div class="badge-popup">
       <button id="closeBadgeBtn" class="badge-close">×</button>
