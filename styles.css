@@ -245,6 +245,13 @@ button:active {
 .family-buttons .secondary-btn {
   padding: 10px 18px;
   font-size: 0.95rem;
+  background: var(--green-light);
+  color: var(--green-dark);
+  border: 2px solid var(--green);
+}
+
+.family-buttons .secondary-btn:hover {
+  background: #bbf7d0;
 }
 
 .quiz-mode-label {
