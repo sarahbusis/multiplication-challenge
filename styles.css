@@ -232,6 +232,27 @@ button:active {
   color: var(--navy);
 }
 
+.family-practice-label {
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 2px dashed var(--gray-200);
+}
+
+.family-buttons {
+  margin-top: 10px;
+}
+
+.family-buttons .secondary-btn {
+  padding: 10px 18px;
+  font-size: 0.95rem;
+}
+
+.quiz-mode-label {
+  margin: 2px 0 4px;
+  color: var(--blue);
+  font-weight: 800;
+}
+
 .quiz-header,
 .dashboard-header {
   display: flex;

@@ -1,4 +1,6 @@
-const TOTAL_PROBLEMS = 50;
+const FULL_TOTAL_PROBLEMS = 50;
+const FAMILY_TOTAL_PROBLEMS = 80;
+const FAMILY_NUMBERS = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 const DEFAULT_TIME_LIMIT_SECONDS = 180;
 
 // Google Apps Script Web App URL for the Spark Multiplication Challenge backend.
@@ -7,6 +9,12 @@ const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzBTcrmG25f-S_dbhY3
 let currentLunchNumber = "";
 let currentProblems = [];
 let currentTimeLimitSeconds = DEFAULT_TIME_LIMIT_SECONDS;
+let currentFamilyTimeLimitSeconds = DEFAULT_TIME_LIMIT_SECONDS;
+let visibleFamilies = {};
+// null = the full 50-question challenge; a number 2-10 = that fact-family drill.
+let currentQuizFamily = null;
+// The time limit actually in effect for the quiz currently being taken.
+let activeTimeLimitSeconds = DEFAULT_TIME_LIMIT_SECONDS;
 let startTime = null;
 let timerInterval = null;
 let submitted = false;
@@ -58,7 +66,10 @@ const translations = {
     scoreSaved: "Score saved!",
     scoreSaveError: "Score could not be saved. Your local result is still shown.",
     loadingDashboard: "Loading your progress...",
-    dashboardOffline: "Showing results saved on this device only. Could not reach the server."
+    dashboardOffline: "Showing results saved on this device only. Could not reach the server.",
+    familyPracticeLabel: "Practice by fact family:",
+    readyTextFamilyTemplate: "You will answer {total} \"{family}\" facts. Your teacher controls the time limit.",
+    practiceModeSuffix: "Practice"
   },
   es: {
     title: "Reto de multiplicación de Spark Academy",
@@ -105,7 +116,10 @@ const translations = {
     scoreSaved: "¡Puntaje guardado!",
     scoreSaveError: "No se pudo guardar el puntaje. Tu resultado local todavía aparece.",
     loadingDashboard: "Cargando tu progreso...",
-    dashboardOffline: "Mostrando solo los resultados guardados en este dispositivo. No se pudo conectar con el servidor."
+    dashboardOffline: "Mostrando solo los resultados guardados en este dispositivo. No se pudo conectar con el servidor.",
+    familyPracticeLabel: "Practica por familia de multiplicación:",
+    readyTextFamilyTemplate: "Contestarás {total} operaciones de la tabla del {family}. Tu maestro controla el límite de tiempo.",
+    practiceModeSuffix: "Práctica"
   }
 };
 
@@ -124,6 +138,10 @@ const currentLunchDisplay = document.getElementById("currentLunchDisplay");
 const goReadyBtn = document.getElementById("goReadyBtn");
 const goDashboardBtn = document.getElementById("goDashboardBtn");
 const changeLunchBtn = document.getElementById("changeLunchBtn");
+const familyPracticeLabel = document.getElementById("familyPracticeLabel");
+const familyButtonsContainer = document.getElementById("familyButtonsContainer");
+const readyTextEl = document.getElementById("readyText");
+const quizModeLabel = document.getElementById("quizModeLabel");
 const startBtn = document.getElementById("startBtn");
 const backHomeFromReadyBtn = document.getElementById("backHomeFromReadyBtn");
 const problemGrid = document.getElementById("problemGrid");
@@ -174,7 +192,8 @@ function applyLanguage() {
     lunchInput.placeholder = "Star Card ID";
   }
 
-  updateTimeLimitNotes();
+  updateReadyScreenText();
+  renderFamilyButtons();
 }
 
 function showScreen(screenName) {
@@ -269,9 +288,71 @@ function generateProblemSet() {
   // fact appears twice in the combined 50 - "2 x 5" and "5 x 2" can both
   // appear (different ordered pairs), but never the exact same pair twice.
   const selectedZeroFacts = shuffleArray(zeroFacts).slice(0, zeroFactCount);
-  const selectedNonZeroFacts = shuffleArray(nonZeroFacts).slice(0, TOTAL_PROBLEMS - zeroFactCount);
+  const selectedNonZeroFacts = shuffleArray(nonZeroFacts).slice(0, FULL_TOTAL_PROBLEMS - zeroFactCount);
 
   return shuffleArray([...selectedZeroFacts, ...selectedNonZeroFacts]);
+}
+
+// All 21 unique ordered pairs involving a given fact-family number (e.g. for
+// familyNumber=2: 2x0..2x10, plus 0x2..10x2 excluding the already-counted 2x2).
+function generateFamilyFacts(familyNumber) {
+  const facts = [];
+
+  for (let n = 0; n <= 10; n++) {
+    facts.push({ factor1: familyNumber, factor2: n, correctAnswer: familyNumber * n });
+
+    if (n !== familyNumber) {
+      facts.push({ factor1: n, factor2: familyNumber, correctAnswer: n * familyNumber });
+    }
+  }
+
+  return facts;
+}
+
+// Fact-family drills use 80 questions from a pool of only 21 unique facts, so
+// repeats are unavoidable (and intentionally allowed here, unlike the full
+// challenge) - but they're spread as evenly as possible rather than left to
+// chance, and never placed back-to-back.
+function generateFamilyProblemSet(familyNumber) {
+  const pool = generateFamilyFacts(familyNumber);
+  const poolSize = pool.length;
+
+  const baseReps = Math.floor(FAMILY_TOTAL_PROBLEMS / poolSize);
+  const remainder = FAMILY_TOTAL_PROBLEMS - baseReps * poolSize;
+
+  // `remainder` of the (shuffled) facts get one extra repetition so the
+  // total adds up to exactly 80 while keeping counts as even as possible.
+  const shuffledPool = shuffleArray(pool);
+  const problems = [];
+
+  shuffledPool.forEach((fact, index) => {
+    const reps = index < remainder ? baseReps + 1 : baseReps;
+    for (let i = 0; i < reps; i++) {
+      problems.push(fact);
+    }
+  });
+
+  return shuffleAvoidingAdjacentDuplicates(problems);
+}
+
+// Shuffles, then does a light pass to swap away any spot where the same
+// fact ended up immediately next to itself.
+function shuffleAvoidingAdjacentDuplicates(array) {
+  const shuffled = shuffleArray(array);
+  const factKey = (fact) => `${fact.factor1}x${fact.factor2}`;
+
+  for (let i = 1; i < shuffled.length; i++) {
+    if (factKey(shuffled[i]) === factKey(shuffled[i - 1])) {
+      for (let j = i + 1; j < shuffled.length; j++) {
+        if (factKey(shuffled[j]) !== factKey(shuffled[i - 1])) {
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          break;
+        }
+      }
+    }
+  }
+
+  return shuffled;
 }
 
 function jsonpRequest(baseUrl, params = {}, timeoutMs = 30000) {
@@ -359,49 +440,137 @@ async function loadSettings() {
       cacheBust: Date.now()
     });
 
-    if (data && data.ok && Number(data.timeLimitSeconds)) {
-      currentTimeLimitSeconds = Number(data.timeLimitSeconds);
-      localStorage.setItem("multTimeLimitSeconds", String(currentTimeLimitSeconds));
-      updateTimeLimitNotes();
+    if (data && data.ok) {
+      if (Number(data.timeLimitSeconds)) {
+        currentTimeLimitSeconds = Number(data.timeLimitSeconds);
+        localStorage.setItem("multTimeLimitSeconds", String(currentTimeLimitSeconds));
+      }
+
+      if (Number(data.factFamilyTimeLimitSeconds)) {
+        currentFamilyTimeLimitSeconds = Number(data.factFamilyTimeLimitSeconds);
+        localStorage.setItem("multFamilyTimeLimitSeconds", String(currentFamilyTimeLimitSeconds));
+      }
+
+      if (data.visibleFamilies && typeof data.visibleFamilies === "object") {
+        visibleFamilies = data.visibleFamilies;
+        localStorage.setItem("multVisibleFamilies", JSON.stringify(visibleFamilies));
+      }
+
+      updateReadyScreenText();
+      renderFamilyButtons();
       return;
     }
 
-    useFallbackTimeLimit();
+    useFallbackSettings();
   } catch (error) {
     console.error("Settings failed to load:", error);
-    useFallbackTimeLimit();
+    useFallbackSettings();
   }
 }
 
-function useFallbackTimeLimit() {
-  const saved = Number(localStorage.getItem("multTimeLimitSeconds"));
+function useFallbackSettings() {
+  const savedTimeLimit = Number(localStorage.getItem("multTimeLimitSeconds"));
+  currentTimeLimitSeconds = savedTimeLimit || DEFAULT_TIME_LIMIT_SECONDS;
 
-  if (saved) {
-    currentTimeLimitSeconds = saved;
-  } else {
-    currentTimeLimitSeconds = DEFAULT_TIME_LIMIT_SECONDS;
+  const savedFamilyTimeLimit = Number(localStorage.getItem("multFamilyTimeLimitSeconds"));
+  currentFamilyTimeLimitSeconds = savedFamilyTimeLimit || DEFAULT_TIME_LIMIT_SECONDS;
+
+  try {
+    // If we've never successfully reached the server, default every family
+    // drill to hidden rather than guessing - the teacher hasn't necessarily
+    // turned any of them on yet.
+    visibleFamilies = JSON.parse(localStorage.getItem("multVisibleFamilies")) || {};
+  } catch {
+    visibleFamilies = {};
   }
 
-  updateTimeLimitNotes();
+  updateReadyScreenText();
+  renderFamilyButtons();
 }
 
-function updateTimeLimitNotes() {
-  const text = `${t("settingsLoaded")} ${formatSeconds(currentTimeLimitSeconds)}`;
+// English buttons/sentences read naturally as "2s"; Spanish reads more
+// naturally as "tabla del 2", so the plain number is used there instead.
+function familyPlaceholder(n) {
+  return language === "es" ? String(n) : `${n}s`;
+}
+
+function familyButtonLabel(n) {
+  return language === "es" ? `Tabla del ${n}` : `${n}s`;
+}
+
+function renderFamilyButtons() {
+  if (!familyButtonsContainer) return;
+
+  familyButtonsContainer.innerHTML = "";
+
+  const anyVisible = FAMILY_NUMBERS.some((n) => visibleFamilies[n]);
+
+  if (familyPracticeLabel) {
+    familyPracticeLabel.classList.toggle("hidden", !anyVisible);
+  }
+
+  FAMILY_NUMBERS.forEach((n) => {
+    if (!visibleFamilies[n]) return;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "secondary-btn";
+    btn.textContent = familyButtonLabel(n);
+    btn.addEventListener("click", () => startFamilyReady(n));
+    familyButtonsContainer.appendChild(btn);
+  });
+}
+
+async function startFamilyReady(familyNumber) {
+  currentQuizFamily = familyNumber;
+  await loadSettings();
+  updateReadyScreenText();
+  showScreen("ready");
+}
+
+// Updates the Ready screen's instructions and time-limit note for whichever
+// mode (full challenge or a fact-family drill) is currently selected.
+function updateReadyScreenText() {
+  const isFamily = currentQuizFamily !== null;
+  const total = isFamily ? FAMILY_TOTAL_PROBLEMS : FULL_TOTAL_PROBLEMS;
+  const limit = isFamily ? currentFamilyTimeLimitSeconds : currentTimeLimitSeconds;
+
+  if (readyTextEl) {
+    readyTextEl.textContent = isFamily
+      ? t("readyTextFamilyTemplate")
+          .replace("{total}", total)
+          .replace("{family}", familyPlaceholder(currentQuizFamily))
+      : t("readyText");
+  }
 
   if (timeLimitNote) {
-    timeLimitNote.textContent = text;
+    timeLimitNote.textContent = `${t("settingsLoaded")} ${formatSeconds(limit)}`;
+  }
+
+  if (quizModeLabel) {
+    quizModeLabel.textContent = isFamily
+      ? `${familyButtonLabel(currentQuizFamily)} ${t("practiceModeSuffix")}`
+      : "";
   }
 }
 
 async function startChallenge() {
   await loadSettings();
 
-  currentProblems = generateProblemSet();
+  const isFamily = currentQuizFamily !== null;
+
+  currentProblems = isFamily
+    ? generateFamilyProblemSet(currentQuizFamily)
+    : generateProblemSet();
+
+  activeTimeLimitSeconds = isFamily ? currentFamilyTimeLimitSeconds : currentTimeLimitSeconds;
+
   startTime = Date.now();
   submitted = false;
 
   renderProblems();
-  updateTimerDisplay(currentTimeLimitSeconds);
+  updateReadyScreenText();
+  updateTimerDisplay(activeTimeLimitSeconds);
 
   showScreen("quiz");
 
@@ -474,14 +643,14 @@ function focusNextInput(currentIndex) {
 
 function allProblemsAnswered() {
   const inputs = [...document.querySelectorAll(".answer-input")];
-  return inputs.length === TOTAL_PROBLEMS && inputs.every((input) => input.value.trim() !== "");
+  return inputs.length === currentProblems.length && inputs.every((input) => input.value.trim() !== "");
 }
 
 function handleTimerTick() {
   if (submitted) return;
 
   const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-  const remainingSeconds = Math.max(0, currentTimeLimitSeconds - elapsedSeconds);
+  const remainingSeconds = Math.max(0, activeTimeLimitSeconds - elapsedSeconds);
 
   updateTimerDisplay(remainingSeconds);
 
@@ -507,8 +676,10 @@ function submitAttempt() {
   submitted = true;
   clearInterval(timerInterval);
 
+  const isFamily = currentQuizFamily !== null;
+
   const timeUsedSeconds = Math.min(
-    currentTimeLimitSeconds,
+    activeTimeLimitSeconds,
     Math.round((Date.now() - startTime) / 1000)
   );
 
@@ -530,7 +701,8 @@ function submitAttempt() {
   });
 
   const score = problemResults.filter((result) => result.isCorrect).length;
-  const percent = Math.round((score / TOTAL_PROBLEMS) * 100);
+  const totalProblems = currentProblems.length;
+  const percent = Math.round((score / totalProblems) * 100);
   // Stored/sent in compact form (e.g. "3x4"); expanded to "3 × 4" only for display.
   const missedFacts = problemResults
     .filter((result) => !result.isCorrect)
@@ -540,22 +712,35 @@ function submitAttempt() {
     attemptId: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
     timestamp: new Date().toISOString(),
     lunchNumber: currentLunchNumber,
+    mode: isFamily ? `family${currentQuizFamily}` : "full",
+    totalProblems,
     score,
     percent,
     timeUsedSeconds,
-    timeLimitSeconds: currentTimeLimitSeconds,
-    completedBeforeTime: timeUsedSeconds < currentTimeLimitSeconds,
+    timeLimitSeconds: activeTimeLimitSeconds,
+    completedBeforeTime: timeUsedSeconds < activeTimeLimitSeconds,
     problems: problemResults,
     missedFacts,
     synced: false
   };
 
-  const previousAttempts = getAttemptsForCurrentStudent();
+  // Clear any leftover "Score saved!" text from a previous full-challenge
+  // attempt so it doesn't linger on a practice drill's results screen.
+  setSaveStatus("");
 
-  saveAttemptLocally(attempt);
   renderResults(attempt);
   showScreen("results");
 
+  if (isFamily) {
+    // Fact-family drills are practice only: they don't sync to the Google
+    // Sheet, feed the cross-device dashboard, or earn badges - only the full
+    // 50-question challenge does.
+    return;
+  }
+
+  const previousAttempts = getAttemptsForCurrentStudent();
+
+  saveAttemptLocally(attempt);
   sendAttemptToGoogleSheet(attempt);
 
   const updatedAttempts = getAttemptsForCurrentStudent();
@@ -645,7 +830,7 @@ function getAttemptsForCurrentStudent() {
 }
 
 function renderResults(attempt) {
-  scoreDisplay.textContent = `${attempt.score}/${TOTAL_PROBLEMS}`;
+  scoreDisplay.textContent = `${attempt.score}/${attempt.totalProblems}`;
   percentDisplay.textContent = `${attempt.percent}%`;
   timeUsedDisplay.textContent = formatSeconds(attempt.timeUsedSeconds);
 
@@ -749,14 +934,14 @@ async function renderDashboard() {
   dashboardContent.classList.remove("hidden");
 
   const bestScore = Math.max(...attempts.map((attempt) => attempt.score));
-  const perfectAttempts = attempts.filter((attempt) => attempt.score === TOTAL_PROBLEMS);
+  const perfectAttempts = attempts.filter((attempt) => attempt.score === FULL_TOTAL_PROBLEMS);
 
   const bestPerfectTime =
     perfectAttempts.length > 0
       ? Math.min(...perfectAttempts.map((attempt) => attempt.timeUsedSeconds))
       : null;
 
-  bestScoreDisplay.textContent = `${bestScore}/${TOTAL_PROBLEMS}`;
+  bestScoreDisplay.textContent = `${bestScore}/${FULL_TOTAL_PROBLEMS}`;
   bestPerfectTimeDisplay.textContent =
     bestPerfectTime === null ? t("noPerfectYet") : formatSeconds(bestPerfectTime);
   attemptCountDisplay.textContent = attempts.length;
@@ -796,7 +981,7 @@ function renderScoreChart(attempts) {
 
   if (attempts.length === 1) {
     const x = padding + chartWidth / 2;
-    const y = canvas.height - padding - (attempts[0].score / TOTAL_PROBLEMS) * chartHeight;
+    const y = canvas.height - padding - (attempts[0].score / FULL_TOTAL_PROBLEMS) * chartHeight;
 
     ctx.beginPath();
     ctx.arc(x, y, 7, 0, Math.PI * 2);
@@ -810,7 +995,7 @@ function renderScoreChart(attempts) {
 
   const points = attempts.map((attempt, index) => {
     const x = padding + (index / (attempts.length - 1)) * chartWidth;
-    const y = canvas.height - padding - (attempt.score / TOTAL_PROBLEMS) * chartHeight;
+    const y = canvas.height - padding - (attempt.score / FULL_TOTAL_PROBLEMS) * chartHeight;
     return { x, y, score: attempt.score };
   });
 
@@ -909,7 +1094,7 @@ function checkForBadges(currentAttempt, previousAttempts, updatedAttempts) {
       : 0;
 
   const previousPerfectAttempts = previousAttempts.filter(
-    (attempt) => attempt.score === TOTAL_PROBLEMS
+    (attempt) => attempt.score === FULL_TOTAL_PROBLEMS
   );
 
   const previousBestPerfectTime =
@@ -921,11 +1106,11 @@ function checkForBadges(currentAttempt, previousAttempts, updatedAttempts) {
     badges.push({
       icon: "🏆",
       title: tBadge("personalBestTitle"),
-      text: tBadge("personalBestText", `${currentAttempt.score}/${TOTAL_PROBLEMS}`)
+      text: tBadge("personalBestText", `${currentAttempt.score}/${FULL_TOTAL_PROBLEMS}`)
     });
   }
 
-  if (currentAttempt.score === TOTAL_PROBLEMS) {
+  if (currentAttempt.score === FULL_TOTAL_PROBLEMS) {
     badges.push({
       icon: "💯",
       title: tBadge("perfectTitle"),
@@ -934,7 +1119,7 @@ function checkForBadges(currentAttempt, previousAttempts, updatedAttempts) {
   }
 
   if (
-    currentAttempt.score === TOTAL_PROBLEMS &&
+    currentAttempt.score === FULL_TOTAL_PROBLEMS &&
     previousBestPerfectTime !== null &&
     currentAttempt.timeUsedSeconds < previousBestPerfectTime
   ) {
@@ -1070,7 +1255,9 @@ lunchInput.addEventListener("keydown", (event) => {
 });
 
 goReadyBtn.addEventListener("click", async () => {
+  currentQuizFamily = null;
   await loadSettings();
+  updateReadyScreenText();
   showScreen("ready");
 });
 
@@ -1089,6 +1276,7 @@ submitBtn.addEventListener("click", submitAttempt);
 
 retryBtn.addEventListener("click", async () => {
   await loadSettings();
+  updateReadyScreenText();
   showScreen("ready");
 });
 
