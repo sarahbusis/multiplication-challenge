@@ -57,9 +57,18 @@ families a teacher has turned on. Each one is an 80-question, 3-minute
 questions is more than the 21 available facts, repeats are unavoidable and
 intentional here (unlike the main 50-question challenge) - the app spreads
 them as evenly as possible and avoids placing the same fact twice in a row.
-Fact-family drills are practice only: results show on-screen but do NOT sync
-to the Google Sheet, the cross-device dashboard, or earn badges. Only the
-main 50-question challenge does that.
+
+Fact-family drills now have their own tabs (named "2s" through "10s") in the
+Google Sheet - one row per attempt, same layout as the Attempts tab. They are
+separate from the main challenge's Scores/Attempts tabs and don't count
+toward badges; only the main 50-question challenge earns badges.
+
+Each family's personal-best score (and, on ties, fastest time) shows in a
+"Fact Family Records" section at the bottom of the student dashboard, e.g.
+"2s record: 60/80 in 2:30" - only for families the student has actually
+attempted at least once. This section appears on the dashboard even if the
+student hasn't taken the main 50-question challenge yet, since it's tracked
+independently.
 
 Controlling fact-family drills from the Settings tab:
 - factFamilyTimeLimitSeconds: time limit for all fact-family drills (shared
@@ -68,8 +77,9 @@ Controlling fact-family drills from the Settings tab:
 - show2s, show3s, ... show10s: set to TRUE to make that family's button
   visible to students, FALSE to hide it. All default to FALSE, so nothing
   shows up until a teacher turns it on.
-These rows are added automatically to your existing Settings tab the next
-time getSettings is called (no need to run setupSheets again).
+These rows are added automatically to your existing Settings tab, and the
+"2s"-"10s" sheet tabs are created automatically, the next time any request
+reaches the backend (no need to run setupSheets again).
 
 Scores tab column order:
 The Scores tab now inserts each new attempt into the leftmost attempt column

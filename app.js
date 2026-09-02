@@ -69,7 +69,9 @@ const translations = {
     dashboardOffline: "Showing results saved on this device only. Could not reach the server.",
     familyPracticeLabel: "Practice by fact family:",
     readyTextFamilyTemplate: "You will answer {total} \"{family}\" facts. Your teacher controls the time limit.",
-    practiceModeSuffix: "Practice"
+    practiceModeSuffix: "Practice",
+    factFamilyRecordsTitle: "Fact Family Records",
+    familyRecordTemplate: "{family} record: {score}/{total} in {time}"
   },
   es: {
     title: "Reto de multiplicación de Spark Academy",
@@ -119,7 +121,9 @@ const translations = {
     dashboardOffline: "Mostrando solo los resultados guardados en este dispositivo. No se pudo conectar con el servidor.",
     familyPracticeLabel: "Practica por familia de multiplicación:",
     readyTextFamilyTemplate: "Contestarás {total} operaciones de la tabla del {family}. Tu maestro controla el límite de tiempo.",
-    practiceModeSuffix: "Práctica"
+    practiceModeSuffix: "Práctica",
+    factFamilyRecordsTitle: "Récords por familia de multiplicación",
+    familyRecordTemplate: "Récord de la tabla del {family}: {score}/{total} en {time}"
   }
 };
 
@@ -163,6 +167,8 @@ const missedFactsList = document.getElementById("missedFactsList");
 const noDataMessage = document.getElementById("noDataMessage");
 const dashboardContent = document.getElementById("dashboardContent");
 const dashboardStatus = document.getElementById("dashboardStatus");
+const familyRecordsSection = document.getElementById("familyRecordsSection");
+const familyRecordsList = document.getElementById("familyRecordsList");
 const scoreChart = document.getElementById("scoreChart");
 const languageBtn = document.getElementById("languageBtn");
 const timeLimitNote = document.getElementById("timeLimitNote");
@@ -713,6 +719,7 @@ function submitAttempt() {
     timestamp: new Date().toISOString(),
     lunchNumber: currentLunchNumber,
     mode: isFamily ? `family${currentQuizFamily}` : "full",
+    familyNumber: currentQuizFamily,
     totalProblems,
     score,
     percent,
@@ -724,17 +731,19 @@ function submitAttempt() {
     synced: false
   };
 
-  // Clear any leftover "Score saved!" text from a previous full-challenge
-  // attempt so it doesn't linger on a practice drill's results screen.
+  // Clear any leftover "Score saved!" text from a previous attempt so it
+  // doesn't linger on this new results screen.
   setSaveStatus("");
 
   renderResults(attempt);
   showScreen("results");
 
   if (isFamily) {
-    // Fact-family drills are practice only: they don't sync to the Google
-    // Sheet, feed the cross-device dashboard, or earn badges - only the full
-    // 50-question challenge does.
+    // Fact-family drills track their own personal-best record (shown on the
+    // dashboard) via a separate sheet tab per family, but don't touch the
+    // main challenge's Scores/Attempts tabs or badges.
+    saveFamilyAttemptLocally(attempt);
+    sendFamilyScoreToGoogleSheet(attempt);
     return;
   }
 
@@ -764,7 +773,7 @@ async function sendAttemptToGoogleSheet(attempt) {
 
     if (data && data.ok) {
       setSaveStatus(t("scoreSaved"));
-      markAttemptSynced(attempt.attemptId);
+      markStoredAttemptSynced("multAttempts", attempt.attemptId);
     } else {
       console.error("Score save error:", data);
       setSaveStatus(t("scoreSaveError"));
@@ -775,14 +784,33 @@ async function sendAttemptToGoogleSheet(attempt) {
   }
 }
 
-// Marks a locally-stored attempt as successfully synced to the sheet, so the
-// dashboard knows it doesn't need to fall back to the local copy for it.
-function markAttemptSynced(attemptId) {
-  const attempts = getLocalAttempts();
-  const updated = attempts.map((attempt) =>
-    attempt.attemptId === attemptId ? { ...attempt, synced: true } : attempt
-  );
-  localStorage.setItem("multAttempts", JSON.stringify(updated));
+async function sendFamilyScoreToGoogleSheet(attempt) {
+  setSaveStatus(t("savingScore"));
+
+  try {
+    const data = await jsonpRequestWithRetry(WEB_APP_URL, {
+      action: "submitFamilyScore",
+      starCardNumber: attempt.lunchNumber,
+      familyNumber: String(attempt.familyNumber),
+      score: String(attempt.score),
+      timeUsedSeconds: String(attempt.timeUsedSeconds),
+      timeLimitSeconds: String(attempt.timeLimitSeconds),
+      completedBeforeTime: String(attempt.completedBeforeTime),
+      missedFacts: (attempt.missedFacts || []).join(","),
+      cacheBust: Date.now()
+    });
+
+    if (data && data.ok) {
+      setSaveStatus(t("scoreSaved"));
+      markStoredAttemptSynced("multFamilyAttempts", attempt.attemptId);
+    } else {
+      console.error("Fact family score save error:", data);
+      setSaveStatus(t("scoreSaveError"));
+    }
+  } catch (error) {
+    console.error("Fact family score failed to save:", error);
+    setSaveStatus(t("scoreSaveError"));
+  }
 }
 
 function setSaveStatus(message) {
@@ -809,22 +837,56 @@ function setDashboardStatus(message) {
   }
 }
 
-function saveAttemptLocally(attempt) {
-  const attempts = getLocalAttempts();
-  attempts.push(attempt);
-  localStorage.setItem("multAttempts", JSON.stringify(attempts));
-}
-
-function getLocalAttempts() {
+// Generic localStorage-backed attempt list, shared by both the main
+// challenge ("multAttempts") and fact-family drills ("multFamilyAttempts").
+function getStoredAttempts(storageKey) {
   try {
-    return JSON.parse(localStorage.getItem("multAttempts")) || [];
+    return JSON.parse(localStorage.getItem(storageKey)) || [];
   } catch {
     return [];
   }
 }
 
+function saveStoredAttempt(storageKey, attempt) {
+  const attempts = getStoredAttempts(storageKey);
+  attempts.push(attempt);
+  localStorage.setItem(storageKey, JSON.stringify(attempts));
+}
+
+// Marks a locally-stored attempt as successfully synced to the sheet, so the
+// dashboard knows it doesn't need to fall back to the local copy for it.
+function markStoredAttemptSynced(storageKey, attemptId) {
+  const attempts = getStoredAttempts(storageKey);
+  const updated = attempts.map((attempt) =>
+    attempt.attemptId === attemptId ? { ...attempt, synced: true } : attempt
+  );
+  localStorage.setItem(storageKey, JSON.stringify(updated));
+}
+
+function saveAttemptLocally(attempt) {
+  saveStoredAttempt("multAttempts", attempt);
+}
+
+function getLocalAttempts() {
+  return getStoredAttempts("multAttempts");
+}
+
 function getAttemptsForCurrentStudent() {
   return getLocalAttempts().filter(
+    (attempt) => String(attempt.lunchNumber) === String(currentLunchNumber)
+  );
+}
+
+function saveFamilyAttemptLocally(attempt) {
+  saveStoredAttempt("multFamilyAttempts", attempt);
+}
+
+function getLocalFamilyAttempts() {
+  return getStoredAttempts("multFamilyAttempts");
+}
+
+function getFamilyAttemptsForCurrentStudent() {
+  return getLocalFamilyAttempts().filter(
     (attempt) => String(attempt.lunchNumber) === String(currentLunchNumber)
   );
 }
@@ -892,6 +954,82 @@ async function loadRemoteHistory(starCardNumber) {
   }));
 }
 
+// Fetches this student's personal-best score/time for each fact family
+// they've attempted, from that family's own sheet tab.
+async function loadFamilyRecords(starCardNumber) {
+  console.log("[dashboard] requesting getFamilyRecords for:", starCardNumber);
+
+  const data = await jsonpRequestWithRetry(WEB_APP_URL, {
+    action: "getFamilyRecords",
+    starCardNumber,
+    cacheBust: Date.now()
+  });
+
+  console.log("[dashboard] getFamilyRecords raw response:", data);
+
+  if (!data || !data.ok || !Array.isArray(data.records)) {
+    throw new Error("Could not load fact family records from the sheet.");
+  }
+
+  return data.records.map((record) => ({
+    familyNumber: Number(record.familyNumber),
+    bestScore: Number(record.bestScore) || 0,
+    bestTimeUsedSeconds: Number(record.bestTimeUsedSeconds) || 0
+  }));
+}
+
+// Computes this student's best score/time per family from any locally-saved
+// family attempts that haven't been confirmed synced yet - covers the case
+// where a save silently failed and the sheet doesn't have it.
+function computeLocalFamilyBests() {
+  const localAttempts = getFamilyAttemptsForCurrentStudent().filter((attempt) => !attempt.synced);
+  const bests = {};
+
+  localAttempts.forEach((attempt) => {
+    const n = attempt.familyNumber;
+    const current = bests[n];
+
+    if (
+      !current ||
+      attempt.score > current.bestScore ||
+      (attempt.score === current.bestScore && attempt.timeUsedSeconds < current.bestTimeUsedSeconds)
+    ) {
+      bests[n] = {
+        familyNumber: n,
+        bestScore: attempt.score,
+        bestTimeUsedSeconds: attempt.timeUsedSeconds
+      };
+    }
+  });
+
+  return bests;
+}
+
+// Combines sheet-sourced records with any better local-only result, per
+// family - picks the higher score, or the faster time on a tie.
+function mergeFamilyRecords(remoteRecords, localBests) {
+  const merged = {};
+
+  remoteRecords.forEach((record) => {
+    merged[record.familyNumber] = record;
+  });
+
+  Object.values(localBests).forEach((localBest) => {
+    const existing = merged[localBest.familyNumber];
+
+    if (
+      !existing ||
+      localBest.bestScore > existing.bestScore ||
+      (localBest.bestScore === existing.bestScore &&
+        localBest.bestTimeUsedSeconds < existing.bestTimeUsedSeconds)
+    ) {
+      merged[localBest.familyNumber] = localBest;
+    }
+  });
+
+  return FAMILY_NUMBERS.map((n) => merged[n]).filter(Boolean);
+}
+
 async function renderDashboard() {
   dashboardLunchDisplay.textContent = currentLunchNumber;
 
@@ -927,27 +1065,69 @@ async function renderDashboard() {
   if (attempts.length === 0) {
     noDataMessage.classList.remove("hidden");
     dashboardContent.classList.add("hidden");
+  } else {
+    noDataMessage.classList.add("hidden");
+    dashboardContent.classList.remove("hidden");
+
+    const bestScore = Math.max(...attempts.map((attempt) => attempt.score));
+    const perfectAttempts = attempts.filter((attempt) => attempt.score === FULL_TOTAL_PROBLEMS);
+
+    const bestPerfectTime =
+      perfectAttempts.length > 0
+        ? Math.min(...perfectAttempts.map((attempt) => attempt.timeUsedSeconds))
+        : null;
+
+    bestScoreDisplay.textContent = `${bestScore}/${FULL_TOTAL_PROBLEMS}`;
+    bestPerfectTimeDisplay.textContent =
+      bestPerfectTime === null ? t("noPerfectYet") : formatSeconds(bestPerfectTime);
+    attemptCountDisplay.textContent = attempts.length;
+
+    renderScoreChart(attempts);
+    renderMostMissedFacts(attempts);
+  }
+
+  // Fact family records are independent of the main challenge data above,
+  // so they render regardless of whether the student has taken the main
+  // 50-question challenge yet.
+  await renderFamilyRecordsSection();
+}
+
+async function renderFamilyRecordsSection() {
+  const localBests = computeLocalFamilyBests();
+
+  try {
+    const remoteRecords = await loadFamilyRecords(currentLunchNumber);
+    renderFamilyRecords(mergeFamilyRecords(remoteRecords, localBests));
+  } catch (error) {
+    console.error("[dashboard] Falling back to local-only family records:", error);
+    renderFamilyRecords(Object.values(localBests));
+  }
+}
+
+function renderFamilyRecords(records) {
+  if (!familyRecordsSection || !familyRecordsList) return;
+
+  if (records.length === 0) {
+    familyRecordsSection.classList.add("hidden");
     return;
   }
 
-  noDataMessage.classList.add("hidden");
-  dashboardContent.classList.remove("hidden");
+  familyRecordsSection.classList.remove("hidden");
+  familyRecordsList.innerHTML = "";
 
-  const bestScore = Math.max(...attempts.map((attempt) => attempt.score));
-  const perfectAttempts = attempts.filter((attempt) => attempt.score === FULL_TOTAL_PROBLEMS);
-
-  const bestPerfectTime =
-    perfectAttempts.length > 0
-      ? Math.min(...perfectAttempts.map((attempt) => attempt.timeUsedSeconds))
-      : null;
-
-  bestScoreDisplay.textContent = `${bestScore}/${FULL_TOTAL_PROBLEMS}`;
-  bestPerfectTimeDisplay.textContent =
-    bestPerfectTime === null ? t("noPerfectYet") : formatSeconds(bestPerfectTime);
-  attemptCountDisplay.textContent = attempts.length;
-
-  renderScoreChart(attempts);
-  renderMostMissedFacts(attempts);
+  records
+    .slice()
+    .sort((a, b) => a.familyNumber - b.familyNumber)
+    .forEach((record) => {
+      const line = document.createElement("p");
+      line.className = "family-record-line";
+      line.textContent = t("familyRecordTemplate")
+        .replace("{family}", familyPlaceholder(record.familyNumber))
+        .replace("{score}", record.bestScore)
+        .replace("{total}", FAMILY_TOTAL_PROBLEMS)
+        .replace("{time}", formatSeconds(record.bestTimeUsedSeconds));
+      familyRecordsList.appendChild(line);
+    });
 }
 
 function renderScoreChart(attempts) {
