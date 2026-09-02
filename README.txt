@@ -53,10 +53,12 @@ Buttons for "2s" through "10s" appear on the home screen, below Start
 Challenge / View My Dashboard / Change Star Card ID, but ONLY for the
 families a teacher has turned on. Each one is an 80-question, 3-minute
 (teacher-adjustable) drill that only uses facts involving that number, e.g.
-"2s" only draws from 2x0-2x10 and 0x2-10x2 (21 unique facts total). Since 80
-questions is more than the 21 available facts, repeats are unavoidable and
-intentional here (unlike the main 50-question challenge) - the app spreads
-them as evenly as possible and avoids placing the same fact twice in a row.
+"2s" only draws from 2x1-2x10 and 1x2-10x2 (19 unique facts total - 0-facts
+like 2x0 are deliberately excluded, since they're much easier and already
+handled separately in the main challenge). Since 80 questions is more than
+the 19 available facts, repeats are unavoidable and intentional here (unlike
+the main 50-question challenge) - the app spreads them as evenly as possible
+and avoids placing the same fact twice in a row.
 
 Fact-family drills now have their own tabs (named "2s" through "10s") in the
 Google Sheet - one row per attempt, same layout as the Attempts tab. They are
