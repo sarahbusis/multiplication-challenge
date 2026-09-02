@@ -71,7 +71,9 @@ const translations = {
     readyTextFamilyTemplate: "You will answer {total} \"{family}\" facts. Your teacher controls the time limit.",
     practiceModeSuffix: "Practice",
     factFamilyRecordsTitle: "Fact Family Records",
-    familyRecordTemplate: "{family} record: {score}/{total} in {time}"
+    familyRecordTemplate: "{family} record: {score}/{total} in {time}",
+    familyPersonalBestTitle: "New {family} Best!",
+    familyPersonalBestText: "You scored {score}. That's your highest {family} score so far!"
   },
   es: {
     title: "Reto de multiplicación de Spark Academy",
@@ -123,7 +125,9 @@ const translations = {
     readyTextFamilyTemplate: "Contestarás {total} operaciones de la tabla del {family}. Tu maestro controla el límite de tiempo.",
     practiceModeSuffix: "Práctica",
     factFamilyRecordsTitle: "Récords por familia de multiplicación",
-    familyRecordTemplate: "Récord de la tabla del {family}: {score}/{total} en {time}"
+    familyRecordTemplate: "Récord de la tabla del {family}: {score}/{total} en {time}",
+    familyPersonalBestTitle: "¡Nuevo récord de la tabla del {family}!",
+    familyPersonalBestText: "Sacaste {score}. ¡Es tu mejor puntaje de la tabla del {family} hasta ahora!"
   }
 };
 
@@ -299,12 +303,14 @@ function generateProblemSet() {
   return shuffleArray([...selectedZeroFacts, ...selectedNonZeroFacts]);
 }
 
-// All 21 unique ordered pairs involving a given fact-family number (e.g. for
-// familyNumber=2: 2x0..2x10, plus 0x2..10x2 excluding the already-counted 2x2).
+// All 19 unique ordered pairs involving a given fact-family number, excluding
+// 0 (e.g. for familyNumber=2: 2x1..2x10, plus 1x2..10x2 excluding the
+// already-counted 2x2). 0-facts are deliberately left out - they're much
+// easier and already handled/capped separately in the main challenge.
 function generateFamilyFacts(familyNumber) {
   const facts = [];
 
-  for (let n = 0; n <= 10; n++) {
+  for (let n = 1; n <= 10; n++) {
     facts.push({ factor1: familyNumber, factor2: n, correctAnswer: familyNumber * n });
 
     if (n !== familyNumber) {
@@ -315,7 +321,7 @@ function generateFamilyFacts(familyNumber) {
   return facts;
 }
 
-// Fact-family drills use 80 questions from a pool of only 21 unique facts, so
+// Fact-family drills use 80 questions from a pool of only 19 unique facts, so
 // repeats are unavoidable (and intentionally allowed here, unlike the full
 // challenge) - but they're spread as evenly as possible rather than left to
 // chance, and never placed back-to-back.
@@ -740,10 +746,16 @@ function submitAttempt() {
 
   if (isFamily) {
     // Fact-family drills track their own personal-best record (shown on the
-    // dashboard) via a separate sheet tab per family, but don't touch the
-    // main challenge's Scores/Attempts tabs or badges.
+    // dashboard) via a separate sheet tab per family, and now also earn a
+    // personal-best badge scoped to that family - but they still don't touch
+    // the main challenge's Scores/Attempts tabs or its badges.
+    const previousFamilyAttempts = getFamilyAttemptsForCurrentStudent().filter(
+      (a) => a.familyNumber === currentQuizFamily
+    );
+
     saveFamilyAttemptLocally(attempt);
     sendFamilyScoreToGoogleSheet(attempt);
+    checkForFamilyBadges(attempt, previousFamilyAttempts);
     return;
   }
 
@@ -1339,6 +1351,33 @@ function checkForBadges(currentAttempt, previousAttempts, updatedAttempts) {
       icon: "🌟",
       title: tBadge("tenAttemptsTitle"),
       text: tBadge("tenAttemptsText")
+    });
+  }
+
+  showBadgesOneAtATime(badges);
+}
+
+// Personal-best badge for fact-family drills, scoped to that specific
+// family (a new best on "2s" doesn't compare against "5s" attempts). Like
+// the main challenge's streak badges, this is based on this device's local
+// history, not the cross-device sheet record.
+function checkForFamilyBadges(currentAttempt, previousFamilyAttempts) {
+  const badges = [];
+
+  const previousBest =
+    previousFamilyAttempts.length > 0
+      ? Math.max(...previousFamilyAttempts.map((attempt) => attempt.score))
+      : 0;
+
+  if (currentAttempt.score > previousBest) {
+    const familyLabel = familyButtonLabel(currentAttempt.familyNumber);
+
+    badges.push({
+      icon: "🏆",
+      title: t("familyPersonalBestTitle").replace("{family}", familyLabel),
+      text: t("familyPersonalBestText")
+        .replace("{family}", familyLabel)
+        .replace("{score}", `${currentAttempt.score}/${currentAttempt.totalProblems}`)
     });
   }
 
