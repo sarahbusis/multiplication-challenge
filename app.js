@@ -249,8 +249,29 @@ function shuffleArray(array) {
   return copy;
 }
 
+const MAX_ZERO_FACTS = 3;
+
 function generateProblemSet() {
-  return shuffleArray(generateAllFacts()).slice(0, TOTAL_PROBLEMS);
+  const allFacts = generateAllFacts();
+
+  // Facts where either factor is 0 (0x0 through 0x10 and x0 through 10x0).
+  // These are capped separately since they're disproportionately common in
+  // the full 0-10 fact list (21 of 121 possible facts) and much easier than
+  // the rest, so an uncapped random draw could over-represent them.
+  const zeroFacts = allFacts.filter((fact) => fact.factor1 === 0 || fact.factor2 === 0);
+  const nonZeroFacts = allFacts.filter((fact) => fact.factor1 !== 0 && fact.factor2 !== 0);
+
+  const maxZeroFacts = Math.min(MAX_ZERO_FACTS, zeroFacts.length);
+  const zeroFactCount = Math.floor(Math.random() * (maxZeroFacts + 1)); // 0 to maxZeroFacts, inclusive
+
+  // Each pool (zero-facts, non-zero-facts) contains no duplicate ordered
+  // pairs to begin with, so slicing a shuffled copy of each guarantees no
+  // fact appears twice in the combined 50 - "2 x 5" and "5 x 2" can both
+  // appear (different ordered pairs), but never the exact same pair twice.
+  const selectedZeroFacts = shuffleArray(zeroFacts).slice(0, zeroFactCount);
+  const selectedNonZeroFacts = shuffleArray(nonZeroFacts).slice(0, TOTAL_PROBLEMS - zeroFactCount);
+
+  return shuffleArray([...selectedZeroFacts, ...selectedNonZeroFacts]);
 }
 
 function jsonpRequest(baseUrl, params = {}, timeoutMs = 30000) {
@@ -662,11 +683,15 @@ function renderResults(attempt) {
 // Fetches this student's full attempt history from the Google Sheet, so the
 // dashboard shows the same data no matter which device they're on.
 async function loadRemoteHistory(starCardNumber) {
+  console.log("[dashboard] requesting getHistory for:", starCardNumber);
+
   const data = await jsonpRequestWithRetry(WEB_APP_URL, {
     action: "getHistory",
     starCardNumber,
     cacheBust: Date.now()
   });
+
+  console.log("[dashboard] getHistory raw response:", data);
 
   if (!data || !data.ok || !Array.isArray(data.attempts)) {
     throw new Error("Could not load history from the sheet.");
@@ -685,6 +710,8 @@ async function loadRemoteHistory(starCardNumber) {
 async function renderDashboard() {
   dashboardLunchDisplay.textContent = currentLunchNumber;
 
+  console.log("[dashboard] renderDashboard() called for Star Card ID:", currentLunchNumber);
+
   const localAttempts = getAttemptsForCurrentStudent();
   let attempts = localAttempts;
   let usedRemote = false;
@@ -693,6 +720,8 @@ async function renderDashboard() {
 
   try {
     const remoteAttempts = await loadRemoteHistory(currentLunchNumber);
+    console.log("[dashboard] remote attempts received:", remoteAttempts.length, remoteAttempts);
+
     // Any local attempt that hasn't confirmed as synced yet (e.g. saved
     // offline, or the save silently failed) still gets shown, alongside
     // everything the sheet knows about from any device.
@@ -702,9 +731,11 @@ async function renderDashboard() {
     );
     usedRemote = true;
   } catch (error) {
-    console.error("Falling back to local-only dashboard data:", error);
+    console.error("[dashboard] Falling back to local-only dashboard data:", error);
     attempts = localAttempts;
   }
+
+  console.log("[dashboard] final attempts used for rendering:", attempts.length, "usedRemote:", usedRemote);
 
   setDashboardStatus(usedRemote ? "" : t("dashboardOffline"));
 
